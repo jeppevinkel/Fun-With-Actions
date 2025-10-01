@@ -3,13 +3,9 @@ name: CLA Validation
 on:
   pull_request:
 
-permissions:
-  contents: read
-  pull-requests: write
-  issues: write
-
 jobs:
   validate-cla:
     uses: jeppevinkel/Fun-With-Actions/.github/workflows/cla-validator.yaml@master
-    secrets:
-      REMOTE_TOKEN : ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: read
+      pull-requests: write
