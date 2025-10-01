@@ -43,8 +43,8 @@ jobs:
         with:
           github-token: ${{ secrets.REMOTE_TOKEN }}
           script: |
-            const { data: me } = await github.rest.users.getAuthenticated();
-            core.info(`Authenticated as: ${me.login}`);
+            //const { data: me } = await github.rest.users.getAuthenticated();
+            //core.info(`Authenticated as: ${me.login}`);
 
             const authorLogin = process.env.AUTHOR_LOGIN;
             const defaultBranch = process.env.DEFAULT_BRANCH;
