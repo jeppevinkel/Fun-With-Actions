@@ -5,7 +5,7 @@ on:
 
 jobs:
   validate-cla:
-    uses: jeppevinkel/Fun-With-Actions/.github/workflows/cla-validator.yaml@master
+    uses: BOLL7708/reusable_workflows/.github/workflows/cla-validator.yaml@use
     permissions:
       contents: read
       pull-requests: write
