@@ -1,0 +1,98 @@
+name: CLA Validation
+
+on:
+  workflow_call:
+    secrets:
+      REMOTE_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate-cla:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check if author is in CLA
+        id: validate-cla
+        shell: pwsh
+        env:
+          AUTHOR_LOGIN: ${{ github.event.pull_request.user.login }}
+          GITHUB_TOKEN: ${{ secrets.REMOTE_TOKEN }}
+        run: |
+          $selector = Select-String -Path CLA.md -Pattern "- $Env:AUTHOR_LOGIN"
+
+          if ($selector -ne $null)
+          {
+            "in_cla=true" >> $Env:GITHUB_OUTPUT
+            "$Env:AUTHOR_LOGIN is in the CLA" >> $Env:GITHUB_STEP_SUMMARY
+          }
+          else
+          {
+            "in_cla=false" >> $Env:GITHUB_OUTPUT
+            "$Env:AUTHOR_LOGIN is not in the CLA" >> $Env:GITHUB_STEP_SUMMARY
+          }
+
+      - name: Post message about CLA
+        if: steps.validate-cla.outputs.in_cla == 'false'
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.REMOTE_TOKEN }}
+          script: |
+            const { data: me } = await github.rest.users.getAuthenticated();
+            core.info(`Authenticated as: ${me.login}`);
+
+            const authorLogin = process.env.AUTHOR_LOGIN;
+            const defaultBranch = process.env.DEFAULT_BRANCH;
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+
+            const { data: labels } = await github.rest.issues.listLabelsOnIssue({
+              owner, repo, issue_number
+            });
+
+            const hasLabel = labels.some(label => label.name === 'cla-not-signed');
+
+            if (!hasLabel) {
+              await github.rest.issues.createComment({
+                body: `⚠️ Pull requests will only be accepted if the [CLA](../blob/${defaultBranch}/CLA.md) has been signed.\n\nIt appears that you have not yet signed the [CLA](../blob/${defaultBranch}/CLA.md) with your GitHub username. In order to contribute to this project, you must read the CLA fully, and then append the following to the bottom of the document to sign it.\n\n\`\`\`\n- ${authorLogin}\n\n\`\`\``,
+                issue_number,
+                owner,
+                repo,
+              });
+
+              await github.rest.issues.addLabels({
+                owner, repo, issue_number, labels: ['cla-not-signed']
+              });
+            }
+
+            core.setFailed('Failing action until CLA has been signed');
+
+      - name: Remove label if CLA is signed
+        if: steps.validate-cla.outputs.in_cla == 'true'
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.REMOTE_TOKEN }}
+          script: |
+            const { data: me } = await github.rest.users.getAuthenticated();
+            core.info(`Authenticated as: ${me.login}`);
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+
+            const { data: labels } = await github.rest.issues.listLabelsOnIssue({
+              owner, repo, issue_number
+            });
+
+            const hasLabel = labels.some(label => label.name === 'cla-not-signed');
+
+            if (hasLabel) {
+              await github.rest.issues.removeLabel({
+                owner, repo, issue_number, name: 'cla-not-signed'
+              });
+            }
